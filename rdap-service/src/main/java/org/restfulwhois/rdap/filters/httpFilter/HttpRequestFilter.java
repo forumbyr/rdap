@@ -75,12 +75,18 @@ public class HttpRequestFilter implements HttpFilter {
     /**
      * allow methods.
      */
-    private static final List<String> ALLOW_METHODS = new ArrayList<String>();
+    private static final List<String> QUERY_ALLOW_METHODS =
+            new ArrayList<String>();
+    private static final List<String> UPDATE_ALLOW_METHODS =
+            new ArrayList<String>();
     /**
      * init allow methods.
      */
     static {
-        ALLOW_METHODS.add("GET");
+        QUERY_ALLOW_METHODS.add("GET");
+        UPDATE_ALLOW_METHODS.add("POST");
+        UPDATE_ALLOW_METHODS.add("PUT");
+        UPDATE_ALLOW_METHODS.add("DELETE");
         SUPPORTED_MEDIA_TYPE.add(new MediaType("application", "rdap+json"));
         SUPPORTED_MEDIA_TYPE.add(new MediaType("application", "json"));
     }
@@ -116,12 +122,35 @@ public class HttpRequestFilter implements HttpFilter {
             FilterHelper.writeResponse(responseEntity, response);
             return false;
         }
+        if (FilterHelper.isUpdateUri(request)) {
+            boolean contentTypeValid = checkContentTypeForUpdate(request);
+            if (!contentTypeValid) {
+                ResponseEntity<ErrorMessage> responseEntity =
+                        RestResponse.createResponse415();
+                FilterHelper.writeResponse(responseEntity, response);
+                return contentTypeValid;
+            }
+            return true;
+        }
         boolean mediaTypeIsValid = mediaTypeIsValid(request);
         LOGGER.debug("mediaType is valid:{}", mediaTypeIsValid);
         if (!mediaTypeIsValid) {
             ResponseEntity<ErrorMessage> responseEntity =
                     RestResponse.createResponse415();
             FilterHelper.writeResponse(responseEntity, response);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean checkContentTypeForUpdate(HttpServletRequest request) {
+        String contentTypeHeader = request.getHeader("Content-Type");
+        LOGGER.debug("contentTypeHeader:{}", contentTypeHeader);
+        if (StringUtils.isBlank(contentTypeHeader)) {
+            return false;
+        }
+        MediaType mediaType = StringUtil.parseMediaType(contentTypeHeader);
+        if (null == mediaType) {
             return false;
         }
         return true;
@@ -157,7 +186,7 @@ public class HttpRequestFilter implements HttpFilter {
     private boolean containsSupportedMediaType(List<MediaType> mediaTypes) {
         LOGGER.debug("SUPPORTED_MEDIA_TYPE:{}", SUPPORTED_MEDIA_TYPE);
         for (MediaType supportedMediaType : SUPPORTED_MEDIA_TYPE) {
-            for (MediaType mediaType : SUPPORTED_MEDIA_TYPE) {
+            for (MediaType mediaType : mediaTypes) {
                 if (StringUtils.equalsIgnoreCase(supportedMediaType.getType(),
                         mediaType.getType())
                         && StringUtils.equalsIgnoreCase(
@@ -179,8 +208,13 @@ public class HttpRequestFilter implements HttpFilter {
      */
     private boolean httpMethodIsValid(HttpServletRequest request) {
         String method = request.getMethod();
-        boolean httpMethodIsValid = ALLOW_METHODS.contains(method);
-        return httpMethodIsValid;
+        if (FilterHelper.isUpdateUri(request)) {
+            boolean httpMethodIsValid = UPDATE_ALLOW_METHODS.contains(method);
+            return httpMethodIsValid;
+        } else {
+            boolean httpMethodIsValid = QUERY_ALLOW_METHODS.contains(method);
+            return httpMethodIsValid;
+        }
     }
 
     /**
@@ -206,6 +240,11 @@ public class HttpRequestFilter implements HttpFilter {
     @Override
     public String getName() {
         return getClass().getSimpleName();
+    }
+
+    @Override
+    public boolean needFilter(HttpServletRequest req, HttpServletResponse res) {
+        return true;
     }
 
 }

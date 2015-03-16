@@ -43,8 +43,13 @@ import org.restfulwhois.rdap.common.dao.AbstractQueryDao;
 import org.restfulwhois.rdap.common.dao.QueryDao;
 import org.restfulwhois.rdap.common.dao.SearchDao;
 import org.restfulwhois.rdap.common.dao.impl.SelfLinkGenerator;
+import org.restfulwhois.rdap.common.model.Domain;
+import org.restfulwhois.rdap.common.model.Domain.DomainType;
+import org.restfulwhois.rdap.common.model.Entity;
 import org.restfulwhois.rdap.common.model.Event;
 import org.restfulwhois.rdap.common.model.Link;
+import org.restfulwhois.rdap.common.model.Nameserver;
+import org.restfulwhois.rdap.common.model.Network;
 import org.restfulwhois.rdap.common.model.PublicId;
 import org.restfulwhois.rdap.common.model.Remark;
 import org.restfulwhois.rdap.common.model.SecureDns;
@@ -54,16 +59,12 @@ import org.restfulwhois.rdap.common.support.QueryParam;
 import org.restfulwhois.rdap.common.util.ArpaUtil;
 import org.restfulwhois.rdap.common.util.IpUtil;
 import org.restfulwhois.rdap.common.util.NetworkInBytes;
-import org.restfulwhois.rdap.core.domain.model.Domain;
-import org.restfulwhois.rdap.core.domain.model.Domain.DomainType;
 import org.restfulwhois.rdap.core.domain.queryparam.DomainQueryParam;
-import org.restfulwhois.rdap.core.entity.model.Entity;
-import org.restfulwhois.rdap.core.ip.model.Network;
-import org.restfulwhois.rdap.core.nameserver.model.Nameserver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.stereotype.Repository;
@@ -85,9 +86,9 @@ public class DomainQueryDaoImpl extends AbstractQueryDao<Domain> {
     /**
      * left join domain status SQL.
      */
-    public static final String SQL_LEFT_JOIN_DOMAIN_STATUS =
-            " left outer join RDAP_DOMAIN_STATUS status "
-                    + " on domain.DOMAIN_ID = status.DOMAIN_ID ";
+    private final String SQL_QUERY_DOMAIN_STATUS =
+            "select * from RDAP_DOMAIN_STATUS status"
+                    + " where status.DOMAIN_ID = ?";
     /**
      * logger.
      */
@@ -171,12 +172,14 @@ public class DomainQueryDaoImpl extends AbstractQueryDao<Domain> {
             Domain domain = queryArpaWithoutInnerObjects(queryParam);
             queryAndSetInnerObjects(domain);
             LOGGER.debug("query, domain:" + domain);
+            queryDomainStatus(domain, jdbcTemplate);
             return domain;
         } else {
             // LDH domain for DNR
             Domain domain = queryDomainWithoutInnerObjects(queryParam);
             queryAndSetInnerObjects(domain);
             LOGGER.debug("query, domain:" + domain);
+            queryDomainStatus(domain, jdbcTemplate);
             return domain;
         }
     }
@@ -280,11 +283,10 @@ public class DomainQueryDaoImpl extends AbstractQueryDao<Domain> {
         List<Domain> result = null;
         final int hexCharSize = IpUtil.getHexCharSize(network.getIpVersion());
         String sql =
-                "select domain.*,status.* "
+                "select domain.*"
                         + " from RDAP_IP ip "
                         + " inner join RDAP_DOMAIN domain "
                         + " on domain.NETWORK_ID = ip.IP_ID "
-                        + SQL_LEFT_JOIN_DOMAIN_STATUS
                         + " where ip.STARTADDRESS <= ? and ip.ENDADDRESS >= ?"
                         + " and domain.TYPE = 'arpa' and ip.version = ? "
                         + " && LENGTH(HEX(STARTADDRESS))=? && LENGTH(HEX(ENDADDRESS))=? "
@@ -323,7 +325,7 @@ public class DomainQueryDaoImpl extends AbstractQueryDao<Domain> {
         LOGGER.debug("query LDH_NAME with punyName:{}", punyName);
         final String sql =
                 "select * from RDAP_DOMAIN domain "
-                        + SQL_LEFT_JOIN_DOMAIN_STATUS + " where LDH_NAME= ?  ";
+                        + " where LDH_NAME= ? order by domain.DOMAIN_ID";
         List<Domain> result =
                 jdbcTemplate.query(new PreparedStatementCreator() {
                     @Override
@@ -338,6 +340,32 @@ public class DomainQueryDaoImpl extends AbstractQueryDao<Domain> {
             return null;
         }
         return result.get(0);
+    }
+
+    /**
+     * 
+     * @param domain domain.
+     * @param jdbcTemplate jdbcTemplate.
+     */
+    public void queryDomainStatus(Domain domain, JdbcTemplate jdbcTemplate) {
+        if (domain != null) {
+            final long domainId = domain.getId();
+            List<String> result =
+                    jdbcTemplate.query(new PreparedStatementCreator() {
+                        @Override
+                        public PreparedStatement createPreparedStatement(
+                                Connection connection) throws SQLException {
+                            PreparedStatement ps =
+                                    connection
+                                            .prepareStatement(SQL_QUERY_DOMAIN_STATUS);
+                            ps.setLong(1, domainId);
+                            return ps;
+                        }
+                    }, new StatusResultSetExtractor());
+            if (null != result && result.size() != 0) {
+                domain.setStatus(result);
+            }
+        }
     }
 
     /**
@@ -385,11 +413,31 @@ public class DomainQueryDaoImpl extends AbstractQueryDao<Domain> {
                     result.add(domain);
                     domainMapById.put(domainId, domain);
                 }
-                domain.addStatus(rs.getString("STATUS"));
             }
             return result;
         }
 
+    }
+
+    /**
+     * Status ResultSetExtractor, extract data from ResultSet.
+     * 
+     * @author weijunkai
+     * 
+     */
+    class StatusResultSetExtractor implements ResultSetExtractor<List<String>> {
+        @Override
+        public List<String> extractData(ResultSet rs) throws SQLException {
+            List<String> result = new ArrayList<String>();
+
+            while (rs.next()) {
+                String status = rs.getString("STATUS");
+                if (!result.contains(status)) {
+                    result.add(status);
+                }
+            }
+            return result;
+        }
     }
 
 }

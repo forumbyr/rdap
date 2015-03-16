@@ -35,10 +35,10 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.restfulwhois.rdap.common.model.Domain;
 import org.restfulwhois.rdap.common.support.PageBean;
 import org.restfulwhois.rdap.common.support.QueryParam;
 import org.restfulwhois.rdap.core.domain.dao.impl.DomainQueryDaoImpl;
-import org.restfulwhois.rdap.core.domain.model.Domain;
 import org.restfulwhois.rdap.core.domain.queryparam.DomainSearchByDomainNameParam;
 import org.restfulwhois.rdap.core.domain.queryparam.DomainSearchParam;
 import org.slf4j.Logger;
@@ -99,7 +99,6 @@ public class DomainSearchByNameStrategy extends AbstractDomainSearchStrategy {
         final String punyNameLikeClause = generateLikeClause(punyName);
         final String sql =
                 "select * from RDAP_DOMAIN domain "
-                        + DomainQueryDaoImpl.SQL_LEFT_JOIN_DOMAIN_STATUS
                         + " where LDH_NAME like ? or UNICODE_NAME like ? "
                         + " order by domain.LDH_NAME limit ?,? ";
         final PageBean page = domainSearchParam.getPageBean();
@@ -120,6 +119,9 @@ public class DomainSearchByNameStrategy extends AbstractDomainSearchStrategy {
                 return ps;
             }
         }, domainDao.new DomainWithStatusResultSetExtractor());
+        for(Domain domain : result){
+        	domainDao.queryDomainStatus(domain, jdbcTemplate);
+        }
         return result;
     }
 

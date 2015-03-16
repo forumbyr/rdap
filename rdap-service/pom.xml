@@ -14,6 +14,12 @@
   <name>rdap-service</name>
   <url>http://maven.apache.org</url>
   <dependencies>
+  		<!-- rdap-common -->
+		<dependency>
+			<groupId>org.restfulwhois.rdap</groupId>
+			<artifactId>rdap-common</artifactId>
+			<version>${rdap.version}</version>
+		</dependency>
 		<!-- mysql driver -->
 		<dependency>
 			<groupId>mysql</groupId>
@@ -25,17 +31,16 @@
 			<artifactId>c3p0</artifactId>
 			<version>0.9.1.2</version>
 		</dependency>
+		<dependency>
+			<groupId>org.aspectj</groupId>
+			<artifactId>aspectjweaver</artifactId>
+			<version>1.8.4</version>
+		</dependency>
 		<!-- spring -->
 		<dependency>
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-web</artifactId>
 			<version>${dependency.spring.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>aopalliance</groupId>
-					<artifactId>aopalliance</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.springframework</groupId>
@@ -51,12 +56,6 @@
 			<groupId>org.springframework</groupId>
 			<artifactId>spring-jdbc</artifactId>
 			<version>${dependency.spring.version}</version>
-			<exclusions>
-				<exclusion>
-					<groupId>aopalliance</groupId>
-					<artifactId>aopalliance</artifactId>
-				</exclusion>
-			</exclusions>
 		</dependency>
 		<dependency>
 			<groupId>org.slf4j</groupId>

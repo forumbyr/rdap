@@ -32,6 +32,7 @@
 package org.restfulwhois.rdap.common.util;
 
 import org.apache.commons.lang.StringUtils;
+import org.restfulwhois.rdap.common.model.IpVersion;
 import org.restfulwhois.rdap.common.util.SubnetUtils.SubnetInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -202,6 +203,25 @@ public final class IpUtil {
      * @return bytes.
      */
     public static byte[] ipToByteArray(String ipPrefix, IpVersion ipVersion) {
+        if (null == ipVersion || ipVersion.isNotValidIp()) {
+            return null;
+        }
+        if (ipVersion.isV4()) {
+            return IpV4.toByteArray(ipPrefix);
+        }
+        if (ipVersion.isV6()) {
+            return IpV6.toByteArray(ipPrefix);
+        }
+        return null;
+    }
+    
+    /**
+     * ipToByteArray.
+     * @param ipPrefix IP.
+     * @return bytes.
+     */
+    public static byte[] ipToByteArray(String ipPrefix) {
+        IpVersion ipVersion = getIpVersionOfIp(ipPrefix);
         if (null == ipVersion || ipVersion.isNotValidIp()) {
             return null;
         }

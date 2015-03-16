@@ -35,12 +35,12 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.restfulwhois.rdap.common.model.Domain;
+import org.restfulwhois.rdap.common.model.IpVersion;
 import org.restfulwhois.rdap.common.support.PageBean;
 import org.restfulwhois.rdap.common.support.QueryParam;
 import org.restfulwhois.rdap.common.util.IpUtil;
-import org.restfulwhois.rdap.common.util.IpVersion;
 import org.restfulwhois.rdap.core.domain.dao.impl.DomainQueryDaoImpl;
-import org.restfulwhois.rdap.core.domain.model.Domain;
 import org.restfulwhois.rdap.core.domain.queryparam.DomainSearchByNsIpParam;
 import org.restfulwhois.rdap.core.domain.queryparam.DomainSearchParam;
 import org.slf4j.Logger;
@@ -105,12 +105,11 @@ public class DomainSearchByNsIpStrategy extends AbstractDomainSearchStrategy {
         final byte[] ipBytes = IpUtil.ipToByteArray(ipPrefix, ipVersion);
         DomainQueryDaoImpl domainDao = new DomainQueryDaoImpl();
         final String sql =
-                "SELECT distinct domain.*,status.* FROM  RDAP_DOMAIN domain "
+                "SELECT distinct domain.* FROM  RDAP_DOMAIN domain "
                         + " INNER JOIN REL_DOMAIN_NAMESERVER rel "
                         + " ON domain.DOMAIN_ID = rel.DOMAIN_ID "
                         + " INNER JOIN RDAP_NAMESERVER_IP nsip "
                         + " ON rel.NAMESERVER_ID = nsip.NAMESERVER_ID "
-                        + DomainQueryDaoImpl.SQL_LEFT_JOIN_DOMAIN_STATUS
                         + " where nsip.IP = ? order by domain.LDH_NAME limit ?,?";
         result = jdbcTemplate.query(new PreparedStatementCreator() {
             public PreparedStatement createPreparedStatement(
@@ -122,6 +121,9 @@ public class DomainSearchByNsIpStrategy extends AbstractDomainSearchStrategy {
                 return ps;
             }
         }, domainDao.new DomainWithStatusResultSetExtractor());
+        for(Domain domain : result){
+        	domainDao.queryDomainStatus(domain, jdbcTemplate);
+        }
         return result;
     }
 

@@ -35,10 +35,10 @@ import java.sql.PreparedStatement;
 import java.sql.SQLException;
 import java.util.List;
 
+import org.restfulwhois.rdap.common.model.Domain;
 import org.restfulwhois.rdap.common.support.PageBean;
 import org.restfulwhois.rdap.common.support.QueryParam;
 import org.restfulwhois.rdap.core.domain.dao.impl.DomainQueryDaoImpl;
-import org.restfulwhois.rdap.core.domain.model.Domain;
 import org.restfulwhois.rdap.core.domain.queryparam.DomainSearchByNsLdhNameParam;
 import org.restfulwhois.rdap.core.domain.queryparam.DomainSearchParam;
 import org.slf4j.Logger;
@@ -98,11 +98,10 @@ public class DomainSearchByNsNameStrategy extends AbstractDomainSearchStrategy {
         final String punyName = domainQueryParam.getPunyName();
         final String punyNameLikeClause = generateLikeClause(punyName);
         final String sql =
-                "select distinct domain.*,status.* from  RDAP_DOMAIN domain inner join "
+                "select distinct domain.* from  RDAP_DOMAIN domain inner join "
                         + " REL_DOMAIN_NAMESERVER rel on domain.DOMAIN_ID = rel.DOMAIN_ID "
                         + " inner join RDAP_NAMESERVER ns "
                         + " on rel.NAMESERVER_ID = ns.NAMESERVER_ID "
-                        + DomainQueryDaoImpl.SQL_LEFT_JOIN_DOMAIN_STATUS
                         + " where ns.LDH_NAME LIKE ? "
                         + " order by domain.LDH_NAME limit ?,? ";
         final PageBean page = queryParam.getPageBean();
@@ -122,6 +121,9 @@ public class DomainSearchByNsNameStrategy extends AbstractDomainSearchStrategy {
                         return ps;
                     }
                 }, domainDao.new DomainWithStatusResultSetExtractor());
+        for(Domain domain : result){
+        	domainDao.queryDomainStatus(domain, jdbcTemplate);
+        }
         return result;
     }
 

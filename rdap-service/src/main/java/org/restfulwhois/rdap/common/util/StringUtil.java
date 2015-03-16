@@ -131,7 +131,25 @@ public final class StringUtil {
         }
         return null;
     }
-
+    /**
+     * parse media type from media type string.
+     * <p>
+     * This method is more strict than parseMediaTypes.
+     * 
+     * @param mediaTypeStr
+     *            media type string.
+     * @return media type.
+     */
+    public static MediaType parseMediaType(String mediaTypeStr) {
+        try {
+            return MediaType.parseMediaType(mediaTypeStr
+                  .replaceAll("(?i)CHARSET", "charset"));
+        } catch (Exception e) {
+            LOGGER.error("invalid media type for {}, error :{}", mediaTypeStr,
+                    e);
+        }
+        return null;
+    }   
     /**
      * check if decodeUri contain non-ASCII-printable chars.
      * 
@@ -492,5 +510,23 @@ public final class StringUtil {
     public static String foldCaseAndNormalization(String strParam) {
         String strFold = UCharacter.foldCase(strParam, true);
         return StringUtil.getNormalization(strFold);
+    }
+
+    /**
+     * 
+     * @param stringList
+     * @return
+     */
+    public static List<String> getNotEmptyStringList(List<String> stringList) {
+        List<String> notEmptyStringList = new ArrayList<String>();
+        if (null == stringList) {
+            return notEmptyStringList;
+        }
+        for (String string : stringList) {
+            if (StringUtils.isNotEmpty(StringUtils.trim(string))) {
+                notEmptyStringList.add(string);
+            }
+        }
+        return notEmptyStringList;
     }
 }
